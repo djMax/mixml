@@ -1,5 +1,6 @@
 # MixML
-**A markup language for representing  media performances such as dj mixes or video mixes.**
+
+**A markup language for representing media performances such as dj mixes or video mixes.**
 
 MixML is a TOML-based language for expressing multiple potentially overlapping media streams rendered over time. The prototypical example is a dj mix, which may feature multiple concurrent audio streams, and effects applied both to individual streams or the combined output. Effects include common operations such as pitching the audio up and down, changing the volume, gain or equalization and more traditional effects such as reverb, echo and compression.
 
