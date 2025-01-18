@@ -1,0 +1,6 @@
+[0]
+play = "BeatOfTheBlock.mp3"
+pitch = +10
+
+[5s]
+play = "./HitTheStreets.mp3"

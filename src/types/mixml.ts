@@ -1,6 +1,5 @@
-import { Temporal } from '@js-temporal/polyfill';
-
-import { ISO8601Duration } from './iso-8601';
+import { MixMLDuration } from './iso-8601';
+import { TimeWithSample } from '../parser/TimeWithSample';
 
 export interface ValueChange {
   /**
@@ -10,7 +9,7 @@ export interface ValueChange {
   /**
    * The duration of the volume change
    */
-  duration: ISO8601Duration;
+  duration: MixMLDuration;
   /**
    * The way the values are interpolated between the start and end times
    */
@@ -40,7 +39,7 @@ export interface MixmlEvent {
   pitch: ValueChange | number;
 }
 
-export type EventTimeKey = ISO8601Duration | `${ISO8601Duration}-${string}`;
+export type EventTimeKey = MixMLDuration | `${MixMLDuration}-${string}`;
 
 export interface MixmlDocument {
   [key: EventTimeKey]: MixmlEvent;
@@ -48,7 +47,7 @@ export interface MixmlDocument {
 
 export interface ParsedMixmlDocument {
   events: {
-    at: Temporal.Duration;
+    at: TimeWithSample;
     event: MixmlEvent;
     trackId?: string;
   }[];

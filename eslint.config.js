@@ -1,4 +1,5 @@
 import pluginJs from '@eslint/js';
+import prettierConfig from 'eslint-config-prettier';
 import importPlugin from 'eslint-plugin-import';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
@@ -8,19 +9,13 @@ export default [
   { files: ['**/*.{js,mjs,cjs,ts}'] },
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   pluginJs.configs.recommended,
-  ...tseslint.configs.recommended,
+  prettierConfig,
   ...tseslint.configs.recommended,
   {
     plugins: {
       import: importPlugin,
     },
     rules: {
-      // Enforce single quotes for strings and imports
-      quotes: [
-        'error',
-        'single',
-        { avoidEscape: true, allowTemplateLiterals: false },
-      ],
       // Enforce import sorting
       'import/order': [
         'error',

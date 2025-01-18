@@ -1,30 +1,29 @@
-import { Temporal } from '@js-temporal/polyfill';
 import { parse } from 'smol-toml';
 
-import { MixmlDocument, ParsedMixmlDocument } from '../types/mixml.js';
-
-function toDuration(iso: string): Temporal.Duration {
-  let duration = iso;
-  if (!iso.startsWith('P')) {
-    duration = `PT${iso}`;
-  }
-  // If the last character is not a letter, add a 's'
-  if (!duration[duration.length - 1].match(/[a-zA-Z]/)) {
-    duration += 's';
-  }
-  return Temporal.Duration.from(duration);
-}
+import { TimeWithSample } from './TimeWithSample.js';
+import { MixMLDuration } from '../types/iso-8601.js';
+import {
+  MixmlDocument,
+  MixmlEvent,
+  ParsedMixmlDocument,
+} from '../types/mixml.js';
 
 export function parseMixml(mixml: string): ParsedMixmlDocument {
   const parsed = parse(mixml) as unknown as MixmlDocument;
+  // TODO allow this to be set in the file
+  const sampleRate = 44100;
   const events = Object.entries(parsed).map(([key, value]) => {
     const [iso, trackId] = key.split('-');
     return {
-      at: toDuration(iso),
-      trackId,
-      event: value,
+      at: new TimeWithSample(sampleRate, iso as MixMLDuration),
+      event: mapEvent(value),
+      ...(trackId ? { trackId } : undefined),
     };
   });
 
   return { events };
+}
+
+function mapEvent(value: MixmlEvent): MixmlEvent {
+  return value;
 }
