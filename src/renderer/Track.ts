@@ -1,6 +1,5 @@
-import Ffmpeg, { FilterSpecification } from 'fluent-ffmpeg';
-
 import { ValueChange } from '../types';
+import { FilterSpec } from './FilterFile';
 
 /**
  * A track is a single audio stream that can have effects
@@ -35,54 +34,49 @@ export class Track {
   /**
    * Apply the track's effects to the command.
    */
-  public getFilters(command: Ffmpeg.FfmpegCommand, inputIndex: number) {
-    if (this.media) {
-      const filters: FilterSpecification[] = [];
+  public getFilters(inputIndex: number): FilterSpec[] {
+    const filters: FilterSpec[] = [];
 
-      let inputRef = `${inputIndex}:a`;
-      if (this.startPts) {
-        const outputRef = `dl${inputIndex}`;
-        filters.push({
-          inputs: [`${inputIndex}:a`],
-          filter: 'adelay',
-          options: `delays=${this.startPts}S:all=1`,
-          outputs: [outputRef],
-        });
-        inputRef = outputRef;
-      }
-
-      const pitchFilters = this.getPitchShiftFilters(
-        inputRef,
-        `pt${inputIndex}`,
-      );
-      if (pitchFilters.length) {
-        filters.push(...pitchFilters);
-        inputRef = pitchFilters[pitchFilters.length - 1].outputs?.[0] as string;
-      }
-
-      if (this.volume.length) {
-        // Adjust volume at the set points
-        const outputRef = `vol${inputIndex}`;
-        const volumePoints = this.volume
-          .map((cmd) => `${cmd.pts}p/${cmd.volume}`)
-          .join(' ');
-        filters.push({
-          inputs: [inputRef],
-          filter: 'volume',
-          options: `volume=${volumePoints}`,
-          outputs: [outputRef],
-        });
-        inputRef = outputRef;
-      }
-      return filters;
+    let inputRef = `${inputIndex}:a`;
+    if (this.startPts) {
+      const outputRef = `dl${inputIndex}`;
+      filters.push({
+        inputs: [`${inputIndex}:a`],
+        filter: 'adelay',
+        options: `delays=${this.startPts}S:all=1`,
+        outputs: [outputRef],
+      });
+      inputRef = outputRef;
     }
+
+    const pitchFilters = this.getPitchShiftFilters(inputRef, `pt${inputIndex}`);
+    if (pitchFilters.length) {
+      filters.push(...pitchFilters);
+      inputRef = pitchFilters[pitchFilters.length - 1].outputs?.[0] as string;
+    }
+
+    if (this.volume.length) {
+      // Adjust volume at the set points
+      const outputRef = `vol${inputIndex}`;
+      const volumePoints = this.volume
+        .map((cmd) => `${cmd.pts}p/${cmd.volume}`)
+        .join(' ');
+      filters.push({
+        inputs: [inputRef],
+        filter: 'volume',
+        options: `volume=${volumePoints}`,
+        outputs: [outputRef],
+      });
+      inputRef = outputRef;
+    }
+    return filters;
   }
 
   private getPitchShiftFilters(inputRef: string, outputRefBase: string) {
     if (!this.pitchShift.length) {
       return [];
     }
-    const filters: FilterSpecification[] = [];
+    const filters: FilterSpec[] = [];
     const segments: string[] = [];
 
     this.pitchShift.map((cmd, i) => {
@@ -130,11 +124,7 @@ export class Track {
       filter: 'concat',
       inputs: segments,
       outputs: [`${outputRefBase}_pitched`],
-      options: {
-        n: segments.length,
-        v: 0,
-        a: 1,
-      },
+      options: `n=${segments.length}:v=0:a=1`,
     });
     return filters;
   }

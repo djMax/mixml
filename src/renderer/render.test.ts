@@ -16,20 +16,18 @@ describe('renderer', () => {
 
     // Output to an mp3 file in a temporary directory
     const outputPath = path.join(os.tmpdir(), 'output.mp3');
-    expect(ffmpeg._getArguments()).toMatchInlineSnapshot(`
-      [
-        "-i",
-        "/Users/memetral/dev/personal/mixml/__fixtures__/BeatOfTheBlock.mp3",
-        "-i",
-        "/Users/memetral/dev/personal/mixml/__fixtures__/HitTheStreets.mp3",
-        "-filter_complex",
-        "[0:a]aselect='gte(n\\,0)'[pt0_s0];[pt0_s0]atempo=1.1[pt0_seg0];[pt0_seg0]concat=n=1:v=0:a=1[pt0_pitched];[1:a]adelay=delays=220500S:all=1[dl1];[pt0_pitched][dl1]amix=inputs=2:normalize=0[out]",
-        "-ar",
-        44100,
-        "-map",
-        "[out]",
-      ]
-    `);
+    expect(ffmpeg._getArguments()).toEqual([
+      '-i',
+      expect.stringMatching(/__fixtures__\/BeatOfTheBlock\.mp3$/),
+      '-i',
+      expect.stringMatching(/__fixtures__\/HitTheStreets\.mp3$/),
+      '-ar',
+      44100,
+      '-filter_complex_script',
+      expect.stringMatching(/mixml-filter\.txt$/),
+      '-map',
+      '[out]',
+    ]);
 
     ffmpeg.output(outputPath);
     await new Promise((resolve, reject) => {

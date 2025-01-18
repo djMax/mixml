@@ -1,6 +1,11 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 import FF from 'fluent-ffmpeg';
 
 import { ParsedMixmlDocument } from '../types';
+import { FilterSpec, getFilterFile } from './FilterFile';
 import { normalizeUrl } from './media';
 import { RenderError } from './RenderError';
 import { Track } from './Track';
@@ -48,11 +53,11 @@ export async function getFfmpegConfiguration(
   });
 
   const finalRefs: string[] = [];
-  const finalFilters: FF.FilterSpecification[] = [];
+  const finalFilters: FilterSpec[] = [];
 
   const command = tracks.reduce((command, track, ix) => {
     const updated = command.input(track.media);
-    const filters = track.getFilters(updated, ix);
+    const filters = track.getFilters(ix);
     if (filters?.length) {
       finalRefs.push(filters[filters.length - 1]?.outputs?.[0] as string);
       finalFilters.push(...filters);
@@ -62,18 +67,19 @@ export async function getFfmpegConfiguration(
     return updated;
   }, FF().audioFrequency(44100));
 
+  finalFilters.push({
+    filter: 'amix',
+    inputs: finalRefs,
+    options: `inputs=${finalRefs.length}:normalize=0`,
+    outputs: ['out'],
+  });
+  const filterFile = getFilterFile(finalFilters);
+
+  // Write the filter file to a temporary directory
+  const filterFilePath = path.join(os.tmpdir(), 'mixml-filter.txt');
+  fs.writeFileSync(filterFilePath, filterFile, 'utf-8');
+
   return command
-    .complexFilter([
-      ...finalFilters,
-      {
-        filter: 'amix',
-        inputs: finalRefs,
-        options: {
-          inputs: finalRefs.length,
-          normalize: 0,
-        },
-        outputs: ['out'],
-      },
-    ])
+    .addOption('-filter_complex_script', filterFilePath)
     .map('[out]');
 }
