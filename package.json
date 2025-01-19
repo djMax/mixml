@@ -23,6 +23,7 @@
     "test": "vitest",
     "lint": "eslint .",
     "build": "tsup src/index.ts --format cjs,esm --dts --clean --sourcemap --outDir dist",
+    "format": "prettier --write .",
     "prepublishOnly": "yarn build"
   },
   "repository": {

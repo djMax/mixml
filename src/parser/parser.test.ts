@@ -22,6 +22,7 @@ describe('mixml parser', () => {
             },
           },
         ],
+        "sampleRate": 44100,
       }
     `);
   });

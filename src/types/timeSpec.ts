@@ -15,7 +15,7 @@ export type ISO8601DurationPart =
   | `${ISO8601Hour}${ISO8601Minute}${ISO8601Second | SampleReference}`
   | `${ISO8601Minute}${ISO8601Second | SampleReference}`;
 
-export type MixMLDuration =
+export type MixMLTimeSpec =
   | `PT${ISO8601DurationPart}`
   | `P${ISO8601DurationPart}`
   | ISO8601DurationPart;

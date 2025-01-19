@@ -1,8 +1,11 @@
+/**
+ * Our internal representation of an ffmpeg filter.
+ */
 export interface FilterSpec {
   inputs: string[];
   filter: string;
   options?: string;
-  outputs?: string[];
+  outputs: string[];
 }
 
 export function getFilterFile(filters: FilterSpec[]): string {

@@ -1,6 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 
-import { MixMLDuration } from '../types';
+import { MixMLTimeSpec } from '../types';
 
 export class TimeWithSample {
   public readonly pts: number;
@@ -8,7 +8,7 @@ export class TimeWithSample {
 
   constructor(
     public readonly sampleRate: number,
-    public readonly specification: MixMLDuration,
+    public readonly specification: MixMLTimeSpec,
   ) {
     let isoPart = specification.toLowerCase();
     let sampleOffset = 0;

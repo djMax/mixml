@@ -1,5 +1,8 @@
-import { ValueChange } from '../types';
-import { FilterSpec } from './FilterFile';
+import { TimeWithSample } from '../parser/TimeWithSample';
+import { ParsedInterpolatedValueChange, ParsedValueChange } from '../types';
+import { FilterSpec } from './ffmpegFilterFile';
+
+type VolumeChangeEvent = ParsedInterpolatedValueChange & { at: TimeWithSample };
 
 /**
  * A track is a single audio stream that can have effects
@@ -8,27 +11,34 @@ import { FilterSpec } from './FilterFile';
  */
 export class Track {
   public readonly pitchShift: { pts: number; shift: number }[] = [];
-  public readonly volume: { pts: number; volume: number }[] = [];
+  public readonly volume: VolumeChangeEvent[] = [];
+
+  private stopPts: number | undefined;
 
   constructor(
     public readonly id: string,
     public readonly media: string,
     public readonly startPts: number,
+    public readonly cue: TimeWithSample | undefined,
   ) {}
 
-  addVolumeChange(pts: number, volume: number | ValueChange) {
+  addVolumeChange(at: TimeWithSample, change: ParsedValueChange) {
     // TODO handle the different interpolations
     this.volume.push({
-      pts,
-      volume: typeof volume === 'number' ? volume : volume.value,
+      at,
+      ...(change as ParsedInterpolatedValueChange),
     });
   }
 
-  addPitchShift(pts: number, shift: number | ValueChange) {
+  addPitchShift(pts: number, shift: number) {
     this.pitchShift.push({
       pts,
-      shift: typeof shift === 'number' ? shift : shift.value,
+      shift,
     });
+  }
+
+  setStopPoint(pts: number) {
+    this.stopPts = pts;
   }
 
   /**
@@ -38,6 +48,24 @@ export class Track {
     const filters: FilterSpec[] = [];
 
     let inputRef = `${inputIndex}:a`;
+
+    if (this.cue || this.stopPts) {
+      const options = [
+        this.cue?.pts ? `start_pts=${this.cue.pts}` : '',
+        this.stopPts ? `end_pts=${this.stopPts - this.startPts}` : '',
+      ]
+        .filter(Boolean)
+        .join(':');
+      const outputRef = `cue${inputIndex}`;
+      filters.push({
+        inputs: [inputRef],
+        filter: 'atrim',
+        options,
+        outputs: [outputRef],
+      });
+      inputRef = outputRef;
+    }
+
     if (this.startPts) {
       const outputRef = `dl${inputIndex}`;
       filters.push({
@@ -55,21 +83,68 @@ export class Track {
       inputRef = pitchFilters[pitchFilters.length - 1].outputs?.[0] as string;
     }
 
-    if (this.volume.length) {
-      // Adjust volume at the set points
-      const outputRef = `vol${inputIndex}`;
-      const volumePoints = this.volume
-        .map((cmd) => `${cmd.pts}p/${cmd.volume}`)
-        .join(' ');
-      filters.push({
-        inputs: [inputRef],
-        filter: 'volume',
-        options: `volume=${volumePoints}`,
-        outputs: [outputRef],
-      });
-      inputRef = outputRef;
+    const volumeFilter = this.getVolumeFilter(inputRef, `vol${inputIndex}`);
+    if (volumeFilter) {
+      filters.push(volumeFilter);
+      inputRef = volumeFilter.outputs[0];
     }
     return filters;
+  }
+
+  private getVolumeExpression(event: VolumeChangeEvent, startVolume: number) {
+    const { at, value, duration, interpolation } = event;
+    if (!duration?.pts) {
+      // No interpolation, just set the value
+      return String(value / 10.0);
+    }
+    const startGain = startVolume / 10.0;
+    const endGain = value / 10.0;
+    if (interpolation === 'linear' || !interpolation) {
+      const end = at.pts + duration.pts;
+      return `if(lte(t, ${end}/${at.sampleRate}), lerp(${startGain}, ${endGain}, (t - ${at.pts}/${at.sampleRate})/(${duration.pts}/${at.sampleRate})), ${endGain})`;
+    }
+    throw new Error(`Unsupported interpolation: ${interpolation}`);
+  }
+
+  private getVolumeFilter(
+    inputRef: string,
+    outputRef: string,
+  ): FilterSpec | undefined {
+    if (!this.volume.length) {
+      return undefined;
+    }
+
+    const points = this.volume.sort((a, b) => a.at.pts - b.at.pts);
+    // Make a set of expressions that are missing the closing parenthesis, so that
+    // we can join them up as "else" expressions
+    const expressions = points.map((point, index, arr) => {
+      const nextPoint = arr[index + 1];
+      // If this volume event is at the start of the track, assume we start from 0.
+      // Otherwise, if it's the first change, assume we started at unity gain,
+      // and finally if it's not the first change, use the previous volume value.
+      const lastVolume =
+        point.at.pts === this.startPts
+          ? 0
+          : index > 0
+            ? arr[index - 1].value
+            : 10;
+      // TODO couldn't get pts to work here, so using t instead
+      if (nextPoint) {
+        // Set volume for a range between this point and the next point
+        return `if(between(t,${point.at.pts}/${point.at.sampleRate},${nextPoint.at.pts}/${nextPoint.at.sampleRate}),${this.getVolumeExpression(point, lastVolume)},`;
+      }
+      // Set volume from this point onwards
+      return `if(gte(t,${point.at.pts}/44100),${this.getVolumeExpression(point, lastVolume)},`;
+    });
+
+    const volumeExpression = `${expressions.join('')}1${')'.repeat(expressions.length)}`;
+
+    return {
+      inputs: [inputRef],
+      filter: 'volume',
+      options: `'volume=${volumeExpression}':eval=frame`,
+      outputs: [outputRef],
+    };
   }
 
   private getPitchShiftFilters(inputRef: string, outputRefBase: string) {

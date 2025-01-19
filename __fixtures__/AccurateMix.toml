@@ -1,6 +1,11 @@
-[0]
+[0-A]
 play = "BeatOfTheBlock.mp3"
 pitch = +10
+volume = { value = 10, duration = "0.5s" }
+
+[2s-A]
+volume = { value = 0, duration = "5s" }
 
 [5s]
 play = "./HitTheStreets.mp3"
+volume = { value = 10, duration = "3s" }

@@ -30,6 +30,7 @@ describe('renderer', () => {
     ]);
 
     ffmpeg.output(outputPath);
+    // console.log(ffmpeg._getArguments().join(' '));
     await new Promise((resolve, reject) => {
       ffmpeg.on('end', resolve);
       ffmpeg.on('error', reject);
@@ -38,9 +39,11 @@ describe('renderer', () => {
 
     // Check if the file exists
     expect(fs.existsSync(outputPath)).toBe(true);
-    // Make sure outputPath matches __fixtures__/accurate.mp3
-    expect(fs.readFileSync(outputPath, 'binary')).toStrictEqual(
-      fs.readFileSync(fixturePath('accurate.mp3'), 'binary'),
-    );
+    const newContent = fs.readFileSync(outputPath);
+    const expectedContent = fs.readFileSync(fixturePath('accurate.mp3'));
+    expect(
+      Buffer.compare(newContent, expectedContent),
+      'Output should match expected',
+    ).toBe(0);
   });
 });
