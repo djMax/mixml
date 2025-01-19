@@ -20,7 +20,7 @@ jobs:
       - uses: FedericoCarboni/setup-ffmpeg@v3
         id: setup-ffmpeg
         with:
-          ffmpeg-version: 7.1
+          ffmpeg-version: release
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
